@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:title="Consumo" android:id="@+id/consumoFragment" android:icon="@drawable/ic_baseline_north_24"/>
+    <item android:title="Entrada" android:id="@+id/entradaFragment" android:icon="@drawable/ic_baseline_south_24"/>
+</menu>

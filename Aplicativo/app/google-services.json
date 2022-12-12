@@ -1,0 +1,39 @@
+{
+  "project_info": {
+    "project_number": "73898367709",
+    "project_id": "watertank-e614f",
+    "storage_bucket": "watertank-e614f.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:73898367709:android:c2ed2b0b7a88f9be1ad934",
+        "android_client_info": {
+          "package_name": "com.example.gustavo"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "73898367709-hv0c3fu7cjljnp17glpeibgmbi4luna3.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD1_phb8FR7qgsrkHRVdGT5rfo3vorN-pg"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "73898367709-hv0c3fu7cjljnp17glpeibgmbi4luna3.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
