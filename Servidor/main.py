@@ -24,22 +24,6 @@ def login():
     return login_app(cpf, senha)
 
 
-# Criar rotas entre o arduino e o servidor
-@app.route('/get_clients', methods=['GET'])
-def get_clientes():
-    from json import dumps
-
-    return dumps(get_clients_from_database())
-
-
-# Criar rotas entre o arduino e o servidor
-@app.route('/get_volumes', methods=['GET'])
-def get_volumes():
-    from json import dumps
-
-    return dumps(get_volumes_from_database())
-
-
 @app.route('/colete_volume_atual', methods=['POST'])
 def endpoint_colete_volume_atual():
     from database_functions import colete_volume_atual
@@ -54,7 +38,6 @@ def endpoint_colete_dado_diario():
     cpf = request.form.get('cpf')
     timestamp = request.form.get('timestamp')
 
-    print(timestamp)
     return colete_dado_diario(cpf, timestamp)
 
 
@@ -86,12 +69,7 @@ def endpoint_colete_entrada_entre_datas():
 def get_volume_from_medium_from_user():
     from database_functions import get_medium_volume_value
 
-    user = request.form.get('cpf')
-    volume_value = get_medium_volume_value(user)
-
-    dict = {'volume': volume_value}
-
-    return dict
+    return {'volume': get_medium_volume_value(request.form.get('cpf'))}
 
 
 # Criar rotas entre o arduino e o servidor
@@ -101,6 +79,7 @@ def post_volume():
     id = request.form.get('id')
     time = get_time()
 
+    print(volume, id)
     insert_new_volume(time, volume, id)
 
     return "Volume insert"
@@ -114,7 +93,7 @@ def solicitar_agua():
 
     print(cpf + ' pediu ' + volumeemfalta + " litros de água!")
 
-    return "Volume insert"
+    return "Solicitação realizada com sucesso!"
 
 
 app.run(host='0.0.0.0', port=8080)

@@ -48,37 +48,40 @@ def insert_new_volume(time, volume, id):
     from sqlite3 import connect
     conn = connect('database.db')
 
-    sql_command = 'INSERT INTO volume VALUES("' + time + '", ' + str(volume) + ', "' + id + '")'
+    sql_command = 'INSERT INTO historico (volumeatual, timestamp, idReservatorio) VALUES(' + str(volume) + ', "' + time + '",  "' + id + '")'
     conn.execute(sql_command)
     conn.commit()
 
     conn.close()
 
 
-def get_volume_from_user(cpf):
+def get_last_volume_from_user(cpf):
     from sqlite3 import connect
     conn = connect('database.db')
 
-    volumes = conn.execute('SELECT * FROM caixadagua')
+    reservatorio = conn.execute('SELECT id, capacidade FROM reservatorio WHERE cpf="' + cpf + '"').fetchall()
+    idReservatorio, capacidade = str(reservatorio[0][0]), reservatorio[0][1]
+    volumes = conn.execute('SELECT volumeatual, timestamp FROM historico WHERE idReservatorio = "'+idReservatorio+'" '
+                           'ORDER BY id DESC limit 1;')
     volume_tuple = volumes.fetchall()
+    return capacidade, volume_tuple[0][0], volume_tuple[0][1]
 
-    list_v = []
-    for v in volume_tuple:
-        cpf_temp = v[0]
-        capacidade = v[1]
-        volume_atual = v[2]
-        tempo = v[3]
+def get_all_volume_from_user(cpf):
+    from sqlite3 import connect
+    conn = connect('database.db')
 
-        if cpf_temp == cpf:
-            list_v.append([cpf_temp, capacidade, volume_atual, tempo])
+    reservatorio = conn.execute('SELECT id, capacidade FROM reservatorio WHERE cpf="' + cpf + '"').fetchall()
+    idReservatorio = str(reservatorio[0][0])
+    volumes = conn.execute('SELECT volumeatual FROM historico WHERE idReservatorio = "'+idReservatorio+'"').fetchall()
+    data = 0
+    for v in volumes:
+        data += v[0]
 
-    return list_v
+    return data
 
 
 def colete_volume_atual(user):
-    capacidade = get_volume_from_user(user)[-1][1]
-    volume_atual = get_volume_from_user(user)[-1][2]
-    tempo_coleta = get_volume_from_user(user)[-1][3]
+    capacidade, volume_atual, tempo_coleta = get_last_volume_from_user(user)
 
     return '{"capacidade": "' + str(capacidade) + '", "volumeatual": "' + str(
         volume_atual) + '", "tempocoleta": "' + str(tempo_coleta) + '"}'
@@ -97,7 +100,10 @@ def colete_dado_diario(cpf, timestamp):
     from datetime import datetime
     conn = connect('database.db')
 
-    string = 'SELECT volumeatual FROM caixadagua WHERE cpf="' + cpf + '"  and timestamp >=' + timestamp
+    reservatorio = conn.execute('SELECT id FROM reservatorio WHERE cpf="' + cpf + '"').fetchall()
+    idReservatorio = str(reservatorio[0][0])
+
+    string = 'SELECT volumeatual FROM historico WHERE idReservatorio="' + idReservatorio + '"  and timestamp >=' + timestamp
     volumes = conn.execute(string).fetchall()
     list_volumes = tuple_to_list(volumes, 0)
 
@@ -110,7 +116,7 @@ def colete_dado_diario(cpf, timestamp):
         elif list_volumes[index] < list_volumes[index + 1]:
             entrada += list_volumes[index + 1] - list_volumes[index]
 
-    string = 'SELECT MAX(timestamp) FROM caixadagua WHERE cpf="' + cpf + '"  and timestamp >=' + timestamp + ''
+    string = 'SELECT MAX(timestamp) FROM historico WHERE idReservatorio="' + idReservatorio + '" and timestamp >=' + timestamp + ''
     ultimo_timestamp = conn.execute(string).fetchall()[0][0]
 
     timestamp = datetime.fromtimestamp(ultimo_timestamp)
@@ -119,7 +125,8 @@ def colete_dado_diario(cpf, timestamp):
         timestamp.strftime('%H:%M:%S %d-%m-%Y')) + '"}'
 
 
-def gerar_grafico(list_consumo, list_volumes, list_timestamp, cpf, timestamp_inicial, timestamp_final, tipodedata):
+def gerar_grafico(list_consumo, list_volumes, list_timestamp, cpf, timestamp_inicial, timestamp_final, tipodedata,
+                  data_type):
     import matplotlib.pyplot as plt
     import seaborn as sns
     import pandas as pd
@@ -133,8 +140,11 @@ def gerar_grafico(list_consumo, list_volumes, list_timestamp, cpf, timestamp_ini
             obj[lt] = [0]
 
         for lc in list_consumo:
-            obj[list_timestamp[lc]][0] = (list_volumes[lc] - list_volumes[lc + 1]) + obj[list_timestamp[lc]][0]
 
+            if data_type == 'consumo':
+                obj[list_timestamp[lc]][0] = (list_volumes[lc] - list_volumes[lc + 1]) + obj[list_timestamp[lc]][0]
+            else:
+                obj[list_timestamp[lc]][0] = (list_volumes[lc + 1] - list_volumes[lc]) + obj[list_timestamp[lc]][0]
     else:
         obj = {}
         for lc in list_consumo:
@@ -313,7 +323,9 @@ def colete_consumo_entre_datas(cpf, data_inicial, data_final, tipodedata):
     timestamp_inicial = int(time.mktime(datetime.datetime.strptime(data_inicial, "%d/%m/%Y").timetuple()))
     timestamp_final = int(time.mktime(datetime.datetime.strptime(data_final, "%d/%m/%Y").timetuple()))
 
-    string = 'SELECT volumeatual, timestamp FROM caixadagua WHERE cpf="' + cpf + '"  and timestamp >=' + str(
+    reservatorio = conn.execute('SELECT id FROM reservatorio WHERE cpf="' + cpf + '"').fetchall()
+    idReservatorio = str(reservatorio[0][0])
+    string = 'SELECT volumeatual, timestamp FROM historico WHERE idReservatorio = "' + idReservatorio + '" and timestamp >=' + str(
         timestamp_inicial) + ' and timestamp <= ' + str(timestamp_final) + ''
 
     consulta = conn.execute(string).fetchall()
@@ -341,7 +353,7 @@ def colete_consumo_entre_datas(cpf, data_inicial, data_final, tipodedata):
         consumo_medio = consumo / 12 if qtd_consumo > 0 else 0
 
     name_fig = gerar_grafico(list_consumo, list_volumes, list_timestamp, cpf, timestamp_inicial, timestamp_final,
-                             tipodedata)
+                             tipodedata, 'consumo')
 
     return '{"consumo": "' + str(consumo) + '", "consumomedio": "' + str(
         consumo_medio) + '", "ulrfig": "' + name_fig + '"}'
@@ -355,7 +367,10 @@ def colete_entrada_entre_datas(cpf, data_inicial, data_final, tipodedata):
     import datetime
     timestamp_inicial = int(time.mktime(datetime.datetime.strptime(data_inicial, "%d/%m/%Y").timetuple()))
     timestamp_final = int(time.mktime(datetime.datetime.strptime(data_final, "%d/%m/%Y").timetuple()))
-    string = 'SELECT volumeatual, timestamp FROM caixadagua WHERE cpf="' + cpf + '"  and timestamp >=' + str(
+
+    reservatorio = conn.execute('SELECT id FROM reservatorio WHERE cpf="' + cpf + '"').fetchall()
+    idReservatorio = str(reservatorio[0][0])
+    string = 'SELECT volumeatual, timestamp FROM historico WHERE idReservatorio = "'+idReservatorio+'" and timestamp >=' + str(
         timestamp_inicial) + ' and timestamp <= ' + str(timestamp_final) + ''
     consulta = conn.execute(string).fetchall()
     list_volumes = tuple_to_list(consulta, 0)
@@ -382,18 +397,11 @@ def colete_entrada_entre_datas(cpf, data_inicial, data_final, tipodedata):
         entrada_media = entrada / 12
 
     name_fig = gerar_grafico(list_entrada, list_volumes, list_timestamp, cpf, timestamp_inicial, timestamp_final,
-                             tipodedata)
+                             tipodedata, '')
 
     return '{"consumo": "' + str(entrada) + '", "consumomedio": "' + str(
         entrada_media) + '", "ulrfig": "' + name_fig + '"}'
 
 
 def get_medium_volume_value(user):
-    volume_list = get_volume_from_user(user)
-
-    m = 0
-
-    for a in volume_list:
-        m = m + a[1]
-
-    return m / len(volume_list)
+    return get_all_volume_from_user(user)
